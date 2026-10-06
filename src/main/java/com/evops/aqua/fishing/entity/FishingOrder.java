@@ -3,6 +3,7 @@ package com.evops.aqua.fishing.entity;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.evops.common.BaseEntity;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -23,6 +24,9 @@ public class FishingOrder extends BaseEntity {
     private Long gradingRuleId;
     private String gradingRuleSnapshot;
     private LocalDateTime completedTime;
+    /** 订单总金额：创建时按行金额合计冻结，任何拆分/换点都不得改动（金额口径不变）。 */
+    private BigDecimal totalAmount;
+    private String currency;
     private String operator;
     private String requestId;
     private String remark;
@@ -39,6 +43,10 @@ public class FishingOrder extends BaseEntity {
     public void setGradingRuleSnapshot(String gradingRuleSnapshot) { this.gradingRuleSnapshot = gradingRuleSnapshot; }
     public LocalDateTime getCompletedTime() { return completedTime; }
     public void setCompletedTime(LocalDateTime completedTime) { this.completedTime = completedTime; }
+    public BigDecimal getTotalAmount() { return totalAmount; }
+    public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
     public String getOperator() { return operator; }
     public void setOperator(String operator) { this.operator = operator; }
     public String getRequestId() { return requestId; }

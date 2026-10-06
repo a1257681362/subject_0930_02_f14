@@ -7,6 +7,7 @@ import com.evops.aqua.fishing.dto.ReservationLockRequest;
 import com.evops.aqua.fishing.dto.VehicleChangeRequest;
 import com.evops.aqua.fishing.entity.FishingBin;
 import com.evops.aqua.fishing.entity.FishingChangeEvidence;
+import com.evops.aqua.fishing.entity.FishingColdBox;
 import com.evops.aqua.fishing.entity.FishingGradingRule;
 import com.evops.aqua.fishing.entity.FishingGradingRuleLine;
 import com.evops.aqua.fishing.entity.FishingLoad;
@@ -16,6 +17,7 @@ import com.evops.aqua.fishing.entity.FishingReservation;
 import com.evops.aqua.fishing.entity.FishingVariance;
 import com.evops.aqua.fishing.entity.FishingVehicleChange;
 import com.evops.aqua.fishing.mapper.FishingBinMapper;
+import com.evops.aqua.fishing.mapper.FishingColdBoxMapper;
 import com.evops.aqua.fishing.mapper.FishingLoadMapper;
 import com.evops.aqua.fishing.mapper.FishingNotificationMapper;
 import com.evops.aqua.fishing.mapper.FishingReservationMapper;
@@ -39,6 +41,7 @@ public class FishingReservationService {
     private final FishingReservationMapper reservationMapper;
     private final FishingBinMapper binMapper;
     private final FishingLoadMapper loadMapper;
+    private final FishingColdBoxMapper coldBoxMapper;
     private final FishingVarianceMapper varianceMapper;
     private final FishingVehicleChangeMapper vehicleChangeMapper;
     private final FishingNotificationMapper notificationMapper;
@@ -49,6 +52,7 @@ public class FishingReservationService {
     public FishingReservationService(FishingReservationMapper reservationMapper,
                                      FishingBinMapper binMapper,
                                      FishingLoadMapper loadMapper,
+                                     FishingColdBoxMapper coldBoxMapper,
                                      FishingVarianceMapper varianceMapper,
                                      FishingVehicleChangeMapper vehicleChangeMapper,
                                      FishingNotificationMapper notificationMapper,
@@ -58,6 +62,7 @@ public class FishingReservationService {
         this.reservationMapper = reservationMapper;
         this.binMapper = binMapper;
         this.loadMapper = loadMapper;
+        this.coldBoxMapper = coldBoxMapper;
         this.varianceMapper = varianceMapper;
         this.vehicleChangeMapper = vehicleChangeMapper;
         this.notificationMapper = notificationMapper;
@@ -194,6 +199,21 @@ public class FishingReservationService {
                         + "尚有货物待检验，须先完成检验再完成预约（库位状态与待检标识须一致）");
             }
         }
+        // 冻结箱不得交付：本预约存在净重差异超规则而被冻结的冷藏箱时，禁止完成交付
+        List<FishingColdBox> frozenBoxes = coldBoxMapper.selectList(new QueryWrapper<FishingColdBox>()
+                .eq("reservation_id", reservation.getId())
+                .eq("status", FishingColdBox.STATUS_FROZEN));
+        if (!frozenBoxes.isEmpty()) {
+            StringBuilder boxNos = new StringBuilder();
+            for (FishingColdBox b : frozenBoxes) {
+                if (boxNos.length() > 0) {
+                    boxNos.append("、");
+                }
+                boxNos.append(b.getBoxNo());
+            }
+            throw new IllegalArgumentException("冷藏箱" + boxNos + "因交接净重差异超过规则已冻结，不得交付；"
+                    + "须先处置差异（解冻/补货/客户确认）后再完成预约");
+        }
         FishingReservation before = copyOf(reservation);
         reservation.setStatus(FishingReservation.STATUS_COMPLETED);
         reservation.setCompletedTime(LocalDateTime.now());
@@ -278,6 +298,7 @@ public class FishingReservationService {
         notification.setReservationId(reservation.getId());
         notification.setCustomerName(order.getCustomerName());
         notification.setChangeId(change.getId());
+        notification.setBizType(FishingNotification.BIZ_VEHICLE_CHANGE);
         notification.setMessage("订单" + order.getOrderNo() + "预约" + reservation.getResvNo()
                 + "运输车辆由" + (change.getOldVehicleNo() == null ? "（未登记）" : change.getOldVehicleNo())
                 + "临时变更为" + change.getNewVehicleNo() + "，原因：" + change.getReason() + "，请知悉。");
@@ -301,6 +322,16 @@ public class FishingReservationService {
             throw new IllegalArgumentException("捕捞预约不存在，id=" + id);
         }
         return reservation;
+    }
+
+    /** 供审批流等内部场景更新预约字段（收货点变更审批通过时调用）。 */
+    public void update(FishingReservation reservation) {
+        reservationMapper.updateById(reservation);
+    }
+
+    public String customerNameOf(Long orderId) {
+        FishingOrder order = orderService.getOrThrow(orderId);
+        return order.getCustomerName();
     }
 
     public List<FishingLoad> loadsOf(Long reservationId) {

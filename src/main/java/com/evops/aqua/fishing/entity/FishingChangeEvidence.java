@@ -18,6 +18,13 @@ public class FishingChangeEvidence extends BaseEntity {
     public static final String ENTITY_VARIANCE = "FISHING_VARIANCE";
     public static final String ENTITY_VEHICLE_CHANGE = "FISHING_VEHICLE_CHANGE";
     public static final String ENTITY_NOTIFICATION = "FISHING_NOTIFICATION";
+    public static final String ENTITY_DELIVERY_POINT = "FISHING_DELIVERY_POINT";
+    public static final String ENTITY_ORDER_LINE = "FISHING_ORDER_LINE";
+    public static final String ENTITY_COLD_BOX = "FISHING_COLD_BOX";
+    public static final String ENTITY_BOX_RULE = "FISHING_BOX_RULE";
+    public static final String ENTITY_POINT_CHANGE = "FISHING_POINT_CHANGE";
+    public static final String ENTITY_EXTERNAL_GATEWAY = "AQUA_EXTERNAL_GATEWAY";
+    public static final String ENTITY_EXTERNAL_OUTBOX = "AQUA_EXTERNAL_OUTBOX";
 
     public static final String ACTION_RULE_PUBLISH = "RULE_PUBLISH";
     public static final String ACTION_RULE_DISABLE = "RULE_DISABLE";
@@ -30,11 +37,26 @@ public class FishingChangeEvidence extends BaseEntity {
     public static final String ACTION_RESV_CREATE = "RESV_CREATE";
     public static final String ACTION_RESV_LOCK = "RESV_LOCK";
     public static final String ACTION_RESV_COMPLETE = "RESV_COMPLETE";
+    public static final String ACTION_RESV_SPLIT = "RESV_SPLIT";
     public static final String ACTION_LOAD_RECORD = "LOAD_RECORD";
     public static final String ACTION_VARIANCE_CREATE = "VARIANCE_CREATE";
     public static final String ACTION_VEHICLE_CHANGE = "VEHICLE_CHANGE";
     public static final String ACTION_NOTIFY_SEND = "NOTIFY_SEND";
     public static final String ACTION_NOTIFY_ACK = "NOTIFY_ACK";
+    public static final String ACTION_POINT_REGISTER = "POINT_REGISTER";
+    public static final String ACTION_POINT_DISABLE = "POINT_DISABLE";
+    public static final String ACTION_BOX_RULE_PUBLISH = "BOX_RULE_PUBLISH";
+    public static final String ACTION_BOX_RULE_DISABLE = "BOX_RULE_DISABLE";
+    public static final String ACTION_BOX_STORE = "BOX_STORE";
+    public static final String ACTION_BOX_HANDOVER = "BOX_HANDOVER";
+    public static final String ACTION_BOX_FREEZE = "BOX_FREEZE";
+    public static final String ACTION_POINT_CHANGE_APPLY = "POINT_CHANGE_APPLY";
+    public static final String ACTION_POINT_CHANGE_APPROVE = "POINT_CHANGE_APPROVE";
+    public static final String ACTION_POINT_CHANGE_REJECT = "POINT_CHANGE_REJECT";
+    public static final String ACTION_GATEWAY_UP = "GATEWAY_UP";
+    public static final String ACTION_GATEWAY_DOWN = "GATEWAY_DOWN";
+    public static final String ACTION_OUTBOX_ENQUEUE = "OUTBOX_ENQUEUE";
+    public static final String ACTION_OUTBOX_SEND = "OUTBOX_SEND";
 
     private String entityType;
     private Long entityId;

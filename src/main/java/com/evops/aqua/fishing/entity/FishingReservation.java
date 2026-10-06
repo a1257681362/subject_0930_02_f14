@@ -20,6 +20,10 @@ public class FishingReservation extends BaseEntity {
 
     private String resvNo;
     private Long orderId;
+    /** 挂靠订单行：二次拆分的子预约也永远挂靠同一行，金额按行口径分劈、合计守恒。 */
+    private Long orderLineId;
+    /** 二次拆分母预约；首条拆分预约为空。 */
+    private Long sourceReservationId;
     private String specCode;
     private BigDecimal weightMinG;
     private BigDecimal weightMaxG;
@@ -28,6 +32,11 @@ public class FishingReservation extends BaseEntity {
     private BigDecimal actualQtyKg;
     private Long binId;
     private String vehicleNo;
+    /** 收货点：订单可按收货点拆分；替换须经审批通过后才更新。 */
+    private Long deliveryPointId;
+    private String deliveryPointName;
+    /** 分劈到本预约的金额：同一订单行各预约合计恒等于行金额（原订单金额口径不变）。 */
+    private BigDecimal plannedAmount;
     private String status;
     private String lockedBy;
     private LocalDateTime lockedTime;
@@ -39,6 +48,10 @@ public class FishingReservation extends BaseEntity {
     public void setResvNo(String resvNo) { this.resvNo = resvNo; }
     public Long getOrderId() { return orderId; }
     public void setOrderId(Long orderId) { this.orderId = orderId; }
+    public Long getOrderLineId() { return orderLineId; }
+    public void setOrderLineId(Long orderLineId) { this.orderLineId = orderLineId; }
+    public Long getSourceReservationId() { return sourceReservationId; }
+    public void setSourceReservationId(Long sourceReservationId) { this.sourceReservationId = sourceReservationId; }
     public String getSpecCode() { return specCode; }
     public void setSpecCode(String specCode) { this.specCode = specCode; }
     public BigDecimal getWeightMinG() { return weightMinG; }
@@ -55,6 +68,12 @@ public class FishingReservation extends BaseEntity {
     public void setBinId(Long binId) { this.binId = binId; }
     public String getVehicleNo() { return vehicleNo; }
     public void setVehicleNo(String vehicleNo) { this.vehicleNo = vehicleNo; }
+    public Long getDeliveryPointId() { return deliveryPointId; }
+    public void setDeliveryPointId(Long deliveryPointId) { this.deliveryPointId = deliveryPointId; }
+    public String getDeliveryPointName() { return deliveryPointName; }
+    public void setDeliveryPointName(String deliveryPointName) { this.deliveryPointName = deliveryPointName; }
+    public BigDecimal getPlannedAmount() { return plannedAmount; }
+    public void setPlannedAmount(BigDecimal plannedAmount) { this.plannedAmount = plannedAmount; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public String getLockedBy() { return lockedBy; }

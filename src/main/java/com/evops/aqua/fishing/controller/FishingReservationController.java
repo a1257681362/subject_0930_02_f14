@@ -3,11 +3,13 @@ package com.evops.aqua.fishing.controller;
 import com.evops.aqua.fishing.dto.LoadRecordRequest;
 import com.evops.aqua.fishing.dto.ReservationCompleteRequest;
 import com.evops.aqua.fishing.dto.ReservationLockRequest;
+import com.evops.aqua.fishing.dto.ReservationSplitRequest;
 import com.evops.aqua.fishing.dto.VehicleChangeRequest;
 import com.evops.aqua.fishing.entity.FishingLoad;
 import com.evops.aqua.fishing.entity.FishingReservation;
 import com.evops.aqua.fishing.entity.FishingVehicleChange;
 import com.evops.aqua.fishing.service.FishingReservationService;
+import com.evops.aqua.fishing.service.FishingReservationSplitService;
 import com.evops.common.ApiResponse;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,16 +23,20 @@ import java.util.List;
 
 /**
  * 捕捞预约入口：锁定（占用库位）、现场分仓（按实际规格判级入仓）、
- * 完成（短装/超装生成差异单）、临时换车（登记原因并触发客户通知）。
+ * 完成（短装/超装生成差异单）、临时换车（登记原因并触发客户通知）、
+ * 二次拆分（按规格和收货点拆分；金额口径不变；外部依赖无响应不假装成功）。
  */
 @RestController
 @RequestMapping("/api/aqua/fishing/reservations")
 public class FishingReservationController {
 
     private final FishingReservationService reservationService;
+    private final FishingReservationSplitService splitService;
 
-    public FishingReservationController(FishingReservationService reservationService) {
+    public FishingReservationController(FishingReservationService reservationService,
+                                        FishingReservationSplitService splitService) {
         this.reservationService = reservationService;
+        this.splitService = splitService;
     }
 
     @GetMapping("/{id}")
@@ -65,5 +71,15 @@ public class FishingReservationController {
     public ApiResponse<FishingVehicleChange> changeVehicle(@PathVariable Long id,
                                                            @Validated @RequestBody VehicleChangeRequest request) {
         return ApiResponse.ok(reservationService.changeVehicle(id, request));
+    }
+
+    /**
+     * 二次拆分：按规格执行段和收货点拆分一条草稿预约。
+     * 拆单不改变原订单金额口径；外部海水养殖管理依赖无响应时失败，不假装成功。
+     */
+    @PostMapping("/{id}/split")
+    public ApiResponse<List<FishingReservation>> split(@PathVariable Long id,
+                                                       @Validated @RequestBody ReservationSplitRequest request) {
+        return ApiResponse.ok(splitService.split(id, request));
     }
 }
