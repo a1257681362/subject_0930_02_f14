@@ -199,3 +199,19 @@
 - 全程留证：规则发布/停用、建单/建轮、录入、提交、退回、签名、发货、回放均写 `t_rel_change_evidence`（含操作者、前后 JSON 快照、幂等请求号），可经 `GET /api/aqua/release/evidence` 按对象/请求号/动作追溯。
 
 验收：`mvn test -Dtest=BatchReleaseSignAcceptanceTest`，16 个检查点（CP0–CP15）逐段输出报告，失败即停并给出停点；另在真实文件库 `data/evops.mv.db` 副本上验证：旧库由 `schema.sql` 就地升级至 aqua-13，旧数据回放差异可解释、完整放行签名流程通过且旧台账数据零改动。
+
+## 渔获订单履约（aqua-14）
+
+模块包路径 `com.evops.aqua.fulfill`，在捕捞预约（aqua-8）之上打通：已完成捕捞订单 → 按规格×收货点拆履约子单（可再拆、替换收货点走审批）→ 捕捞后逐箱入冷藏库（入库温度/箱号/毛皮皮重称重）→ 交接按净重差异规则逐箱判定、超差冻结 → 客户首签 → 订单完成；拆单结果同步海水养殖管理，外部无响应不假装成功、恢复后发件箱补偿重发不重复通知；客户只看签收与差异、不看内部成本，全程留证。
+
+- 履约订单（`POST /api/aqua/fulfill/orders`，requestId 强制幂等）：仅可基于**已完成**捕捞订单创建（一张捕捞订单至多一张履约订单）；按「规格 × 收货点」拆为履约子单，行金额=计划净重×协议单价、订单总额由**服务端按行重算**（不接受前端总额），建单即冻结金额口径快照；同预约各子单计划净重合计不得超过实际捕捞量；逐行校验预约归属与规格一致。
+- **拆单不改变原订单金额口径**：再拆（`POST /api/aqua/fulfill/deliveries/{id}/split`）只允许在同收货点同规格、未入库的 PLANNED 子单上按数量切分，单价整链不变，金额按数量比例分摊、**尾差归原行**，全部子单行金额之和恒等于订单总额；替换收货点（`POST /deliveries/{id}/point-changes` → `POST /point-changes/{id}/approve|reject`）必须审批——**审批人+意见缺一不可停留 PENDING**，通过后只改收货点，数量/单价/金额一律不动，驳回不改子单；同一子单同时只允许一条在途申请。
+- 冷藏入库（`POST /api/aqua/fulfill/deliveries/{id}/boxes`，requestId 幂等、箱号全局唯一）：逐箱记录**入库温度、箱号、称重结果（毛重/皮重，净重服务端=毛重−皮重，不信任前端净重）**；毛重≤皮重、温度越界、冷库停用/超容量一律拦截且不残留半账；冷库在库重量与子单入库净重同事务累加，重复请求返回首箱不重复加账。
+- 交接冻结（`POST /deliveries/{id}/handovers`，requestId 幂等）：**必须一次交清该子单全部在库箱**；按当时生效净重差异规则版本（百分比+绝对容差，按规格配置，新版本发布旧版本停用）逐箱判定，阈值=入库净重×pct%+绝对容差，**净重差异超阈值的箱 FROZEN 冻结在库不出库（重量永久占容量，终态）**，正常箱 HANDED_OVER 出库扣减冷库重量；交接单冻结收货点快照与规则版本快照（发布新版本不影响历史交接），一子单至多一次交接。
+- 客户签收（`POST /api/aqua/fulfill/handovers/{id}/sign`）：客户签收的是「正常箱已收到 + 差异与冻结箱清单已知悉」——**即使有冻结箱交接单仍可签收**，签收后子单 DONE，全部子单签收后订单 COMPLETED；**首签有效，重复签收不覆盖首次签收人/时间/备注**。
+- **客户视图脱敏**（`GET /api/aqua/fulfill/orders/{id}?role=CUSTOMER`，缺省/未知角色按最小权限等同 CUSTOMER）：客户看得到订单/子单状态、规格、计划净重、收货点名、逐箱箱号/入库净重/交接净重/差异/是否超差、签收人与签收时间/备注/汇总差异/冻结箱数；**单价/行金额/订单总额/成本凭证/入库温度/毛重皮重/冷藏库等内部字段一律不下发**（白名单 Map 组装，响应正文不含 price/amount/cost/temp/coldStore/gross/tare 字段名）；`role=INTERNAL` 才看全量金额口径。
+- **海水养殖管理外部依赖**（`aqua.fulfill.gateway.mode=sim|http`）：建单事务只落订单 PENDING_SYNC+子单+发件箱 PENDING，事务外在网关即时确认——成功订单转 OPEN 并写 SYNC_OK 证据；**外部无响应（IO/超时/非2xx）时接口明确返回「海水养殖管理无响应，拆单未确认，未成功」，订单停留 PENDING_SYNC（禁止入库/交接/签收/再拆/改点），绝不假装成功**；失败以独立事务写 SYNC_FAIL 证据与 attempts/last_error。
+- **恢复后不重复通知**：eventId 确定性派生（`FULFILL_SPLIT#{requestId}`，唯一约束），Quartz 补偿扫描（`aqua.fulfill.outbox-scan-cron`，默认每 10 分钟；`POST /api/aqua/fulfill/outbox/scan` 手工触发同逻辑）**只发 PENDING 记录，SENT 跳过**，确认推进用条件更新兜底并发，对端按 eventId 幂等，重扫/重启/同 requestId 重放都不会二次通知；单条失败隔离不影响其他事件。sim 模式提供 `/api/aqua/fulfill/gateway/sim/up|down|reset` 与状态查询用于演练与验收。
+- 全程留证：主数据登记/规则版本停用、建单/拆子单/再拆、改点提交/批准/驳回、入库、逐箱交接/冻结、签收、订单完成、外部同步成功/失败均写 `t_fulfill_change_evidence`（含操作者、前后 JSON 快照、幂等请求号；同步失败独立事务留证），可经 `GET /api/aqua/fulfill/evidence` 按对象或 requestId 追溯。
+
+验收：`mvn test -Dtest=FulfillmentAcceptanceTest`，16 个检查点（CP0–CP15）逐段输出报告，失败即停并给出停点；覆盖金额口径三处守恒、入库三要素与称重拦截、超差冻结与冷库账实闭环、首签回执、客户视图字段白名单、网关 DOWN 不假装成功与恢复不重复通知。

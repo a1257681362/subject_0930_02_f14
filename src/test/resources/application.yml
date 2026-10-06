@@ -35,6 +35,11 @@ aqua:
   maint:
     generate-scan-cron: "0 0 0 1 1 ? 2099"
     escalate-scan-cron: "0 0 0 1 1 ? 2099"
+  fulfill:
+    # 验收中手工 POST /api/aqua/fulfill/outbox/scan 驱动恢复，定时不真实触发
+    outbox-scan-cron: "0 0 0 1 1 ? 2099"
+    gateway:
+      mode: sim
 
 logging:
   level:
